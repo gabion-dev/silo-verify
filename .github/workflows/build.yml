@@ -1,0 +1,106 @@
+# .github/workflows/build.yml
+name: Build MinIO
+
+on:
+  workflow_dispatch:
+    inputs:
+      minio_tag:
+        description: 'pgsty/minio tag to build (e.g. RELEASE.2026-03-25T00-00-00Z)'
+        required: true
+        default: 'RELEASE.2026-03-25T00-00-00Z'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            runner: ubuntu-latest
+          - goos: linux
+            goarch: arm64
+            runner: ubuntu-latest
+          - goos: darwin
+            goarch: amd64
+            runner: ubuntu-latest
+          - goos: darwin
+            goarch: arm64
+            runner: ubuntu-latest
+          - goos: windows
+            goarch: amd64
+            runner: ubuntu-latest
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Clone pgsty/minio
+        run: git clone --depth 1 --branch ${{ github.event.inputs.minio_tag }} https://github.com/pgsty/minio.git
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          cd minio
+          COMMIT=$(git rev-parse --short HEAD)
+          EXTENSION=""
+          if [ "$GOOS" = "windows" ]; then EXTENSION=".exe"; fi
+          go build -trimpath -tags kqueue \
+            -ldflags "-s -w -X github.com/minio/minio/cmd.Version=${{ github.event.inputs.minio_tag }} -X github.com/minio/minio/cmd.CommitID=${COMMIT}" \
+            -o ../minio-${GOOS}-${GOARCH}${EXTENSION} .
+
+      - name: Generate checksum
+        run: |
+          EXTENSION=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then EXTENSION=".exe"; fi
+          FILENAME="minio-${{ matrix.goos }}-${{ matrix.goarch }}${EXTENSION}"
+          sha256sum ${FILENAME} > ${FILENAME}.sha256
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: minio-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            minio-${{ matrix.goos }}-${{ matrix.goarch }}*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.minio_tag }}
+          name: MinIO ${{ github.event.inputs.minio_tag }}
+          body: |
+            Pre-built MinIO server binaries from [pgsty/minio](https://github.com/pgsty/minio) tag `${{ github.event.inputs.minio_tag }}`.
+
+            ## Platforms
+            - `minio-linux-amd64` — Linux x64
+            - `minio-linux-arm64` — Linux ARM64
+            - `minio-darwin-amd64` — macOS x64 (Intel)
+            - `minio-darwin-arm64` — macOS ARM64 (Apple Silicon)
+            - `minio-windows-amd64.exe` — Windows x64
+
+            ## Source
+            Built from: https://github.com/pgsty/minio/tree/${{ github.event.inputs.minio_tag }}
+
+            ## License
+            GNU Affero General Public License v3.0
+          files: |
+            minio-*
