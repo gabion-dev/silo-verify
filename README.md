@@ -18,7 +18,7 @@ This repository provides cross-platform MinIO binaries built from the [pgsty/min
 
 ## Download
 
-Binaries are available on the [Releases](https://github.com/Aletherium/minio-server/releases) page. Each release includes SHA256 checksums.
+Binaries are available on the [Releases](https://github.com/gabion-dev/minio-server/releases) page. Each release includes SHA256 checksums.
 
 ## Source & License
 
