@@ -82,6 +82,22 @@ jobs:
         with:
           merge-multiple: true
 
+      # The binaries are AGPL-3.0 software. The license asks that its text
+      # and the upstream notices travel with every copy, and that whoever
+      # distributes the binaries makes the corresponding source available:
+      # the release carries the license, the notices, and an archive of the
+      # exact source tree the binaries were built from.
+      - name: Collect the license, the upstream notices and the corresponding source
+        run: |
+          set -euo pipefail
+          TAG='${{ github.event.inputs.minio_tag }}'
+          git clone --depth 1 --branch "${TAG}" https://github.com/pgsty/minio.git source
+          cp source/LICENSE source/NOTICE source/CREDITS .
+          grep -q "GNU AFFERO GENERAL PUBLIC LICENSE" LICENSE
+          git -C source archive --format=tar.gz --prefix="minio-${TAG}/" \
+            -o "${PWD}/minio-sources.tar.gz" HEAD
+          sha256sum minio-sources.tar.gz > minio-sources.tar.gz.sha256
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -99,8 +115,13 @@ jobs:
 
             ## Source
             Built from: https://github.com/pgsty/minio/tree/${{ github.event.inputs.minio_tag }}
+            The exact source tree the binaries were built from is `minio-sources.tar.gz`.
 
             ## License
-            GNU Affero General Public License v3.0
+            GNU Affero General Public License v3.0 — the text is the `LICENSE` asset;
+            the upstream copyright and third-party notices are `NOTICE` and `CREDITS`.
           files: |
             minio-*
+            LICENSE
+            NOTICE
+            CREDITS

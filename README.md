@@ -24,6 +24,6 @@ Binaries are available on the [Releases](https://github.com/gabion-dev/minio-ser
 
 Built from [pgsty/minio](https://github.com/pgsty/minio) — a community-maintained fork of MinIO.
 
-Distributed under the [GNU Affero General Public License v3.0](LICENSE), the same license as the original MinIO project.
+Distributed under the [GNU Affero General Public License v3.0](LICENSE), the same license as the original MinIO project. Every release carries, next to the binaries, the license text (`LICENSE`), the upstream copyright and third-party notices (`NOTICE`, `CREDITS`) and the exact source tree the binaries were built from (`minio-sources.tar.gz`, with its `.sha256`) — the corresponding source the license requires to accompany a binary distribution.
 
 This project is NOT affiliated with, endorsed by, or sponsored by MinIO, Inc.
