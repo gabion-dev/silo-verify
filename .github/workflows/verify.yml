@@ -1,0 +1,85 @@
+# .github/workflows/verify.yml
+name: Verify Silo
+
+# Gabion no longer builds its development object store: it downloads the
+# ready-made releases of Silo (pgsty/silo, the maintained MinIO fork). This
+# workflow checks a Silo release before Gabion pins it — on the native
+# machine of every platform Gabion installs it on, with the arguments
+# Gabion starts it with, through the operations Gabion's storage module
+# performs (scripts/verify-silo.sh).
+
+on:
+  workflow_dispatch:
+    inputs:
+      silo_tag:
+        description: 'pgsty/silo release tag to verify (e.g. RELEASE.2026-10-18T00-00-00Z)'
+        required: true
+        default: 'RELEASE.2026-10-18T00-00-00Z'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform: linux_amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux_arm64
+          - runner: macos-26
+            platform: darwin_arm64
+          - runner: macos-15
+            platform: darwin_arm64
+          - runner: macos-26-intel
+            platform: darwin_amd64
+          - runner: macos-15-intel
+            platform: darwin_amd64
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      # Silo names its archives by the version number of the release, which
+      # is the tag's digits: RELEASE.2026-10-18T00-00-00Z is 20261018000000.0.0.
+      - name: Download the release and check its checksum
+        env:
+          TAG: ${{ github.event.inputs.silo_tag }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          case "$TAG" in
+            RELEASE.*) ;;
+            *) echo "Not a Silo release tag: $TAG" >&2; exit 1 ;;
+          esac
+          VERSION="$(echo "${TAG#RELEASE.}" | tr -cd '0-9').0.0"
+          BASE="https://github.com/pgsty/silo/releases/download/${TAG}"
+          ARCHIVE="silo_${VERSION}_${PLATFORM}.tar.gz"
+          curl -sfLO "${BASE}/silo_${VERSION}_checksums.txt"
+          curl -sfLO "${BASE}/${ARCHIVE}"
+          EXPECTED="$(grep "  ${ARCHIVE}\$" "silo_${VERSION}_checksums.txt" | cut -d' ' -f1)"
+          if command -v sha256sum >/dev/null; then
+            ACTUAL="$(sha256sum "${ARCHIVE}" | cut -d' ' -f1)"
+          else
+            ACTUAL="$(shasum -a 256 "${ARCHIVE}" | cut -d' ' -f1)"
+          fi
+          echo "${ARCHIVE}: ${ACTUAL}"
+          if [ -z "$EXPECTED" ] || [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "Checksum mismatch: expected '${EXPECTED}', got '${ACTUAL}'" >&2
+            exit 1
+          fi
+          mkdir silo
+          tar -xzf "${ARCHIVE}" -C silo
+          ls -l silo
+          for file in silo LICENSE NOTICE; do
+            [ -f "silo/$file" ] || { echo "Archive lacks $file" >&2; exit 1; }
+          done
+
+      - name: Start it as Gabion does and use it as the storage module does
+        env:
+          TAG: ${{ github.event.inputs.silo_tag }}
+        run: bash scripts/verify-silo.sh silo/silo "$TAG"
