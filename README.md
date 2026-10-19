@@ -1,19 +1,23 @@
-# minio-server
+# silo-verify
 
-Verification of the object store Gabion uses in development.
+Verification of Silo releases before Gabion pins them.
 
 ## What is this?
 
-Gabion's development environment runs an S3-compatible object store next to the application. It used to be MinIO, built in this repository from the [pgsty/minio](https://github.com/pgsty/minio) community fork. That fork is now [pgsty/silo](https://github.com/pgsty/silo), and it publishes ready-made binaries for Linux, macOS and Windows with checksums. Gabion downloads those releases directly; nothing is built here anymore.
+Gabion's development environment runs an S3-compatible object store next to the application: [Silo](https://github.com/pgsty/silo), the maintained fork of MinIO. Silo publishes ready-made binaries with checksums, and Gabion downloads them straight from Silo's releases. This repository builds and distributes nothing; it holds the check a Silo release passes before Gabion pins its version.
 
-What remains here is the check a Silo release passes before Gabion pins it: the `Verify Silo` workflow (`.github/workflows/verify.yml`) downloads the release on the native machine of each platform Gabion installs it on — Linux x64 and ARM64, macOS ARM64 and Intel on two macOS versions — verifies its checksum against the release's `checksums.txt`, and runs `scripts/verify-silo.sh`: the version the binary reports, a start with the arguments Gabion uses, and the bucket and object operations Gabion's storage module performs.
+## The check
 
-## Earlier releases
+The `Verify Silo` workflow (`.github/workflows/verify.yml`) is run by hand with a Silo release tag. On the native machine of each platform Gabion installs Silo on — Linux x64 and ARM64, macOS ARM64 and Intel, each macOS on two versions — it:
 
-The releases of this repository (MinIO binaries built from pgsty/minio, with their license, notices and source archive) stay published for installations of Gabion that still download them.
+1. downloads the release archive and verifies its checksum against the release's `checksums.txt`;
+2. checks that the archive carries the binary, `LICENSE` and `NOTICE`;
+3. runs `scripts/verify-silo.sh`: the version the binary reports, a start with the arguments Gabion uses, and the bucket and object operations Gabion's storage module performs — create a bucket, put an object, read it back, delete it — plus the console answering.
+
+A release Gabion pins is one that passed on every platform.
 
 ## License
 
-The releases of this repository are distributed under the [GNU Affero General Public License v3.0](LICENSE), the same license as MinIO. Every release carries, next to the binaries, the license text (`LICENSE`), the upstream copyright and third-party notices (`NOTICE`, `CREDITS`) and the exact source tree the binaries were built from (`minio-sources.tar.gz`, with its `.sha256`).
+See [LICENSE](LICENSE).
 
 This project is NOT affiliated with, endorsed by, or sponsored by MinIO, Inc. or PGSTY.
