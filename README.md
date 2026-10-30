@@ -16,6 +16,8 @@ The `Verify Silo` workflow (`.github/workflows/verify.yml`) is run by hand with 
 
 A release Gabion pins is one that passed on every platform.
 
+The `Audit` workflow ([`.github/workflows/audit.yml`](.github/workflows/audit.yml)) is run by hand as well: every GitHub Action the workflows pin must be its newest release, or a lag declared in `gabion-audit.json` with its reason.
+
 ## License
 
 See [LICENSE](LICENSE).
